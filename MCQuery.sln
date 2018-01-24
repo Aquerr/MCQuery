@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27130.2024
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MCQuery-Console", "MCQuery\MCQuery-Console.csproj", "{D2B7C12E-E5CC-4517-B07A-AE9AE9A0DDAD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MCQuery-Console", "MCQuery\MCQuery-Console.csproj", "{D2B7C12E-E5CC-4517-B07A-AE9AE9A0DDAD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MCQuery-Lib", "MCQuery-Lib\MCQuery-Lib.csproj", "{B439EF43-29DE-4490-9542-83111E9CF88B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MCQuery", "MCQuery-Lib\MCQuery.csproj", "{B439EF43-29DE-4490-9542-83111E9CF88B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
