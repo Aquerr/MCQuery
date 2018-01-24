@@ -4,91 +4,102 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Timers;
 
 namespace MCQuery
 {
     public class Connection
     {
-        private byte[] Magic = { 0xFE, 0xFD };
-        private byte Handshake = 0x09;
-        private byte Stat = 0x00;
-        private byte[] SessionID = { 0x01, 0x01, 0x01, 0x01 };
+        //Byte - Magic Number
+        private byte[] _magic = { 0xFE, 0xFD };
+        //Byte - Connection Type
+        private byte _handshake = 0x09;
+        private byte _stat = 0x00;
+        //Int32 - SessionIs has
+        private Int32 _sessionId = 1;
+        //Int32 - Challenge Token
+        private Int32 _challengeToken = 0;
+
+        private Timer _challengeTimer = new Timer();
 
         public Connection(string address, int port)
         {
-            try
+            string udpResponse = SendByUdp(address, port);
+
+            if (udpResponse.Equals(String.Empty))
             {
-                string udpResponse = sendByUdp(address, port);
+                string tcpResponse = SendByTcp(address, port);
 
-                if (udpResponse.Equals(String.Empty))
-                {
-                    string tcpResponse = sendByTcp(address, port);
-
-                    if (tcpResponse.Equals(String.Empty)) throw new NotImplementedException();
-                }
-                else
-                {
-                    // Uses the IPEndPoint object to determine which of these two hosts responded.
-                    Console.WriteLine("This is the message you received " +
-                                                 udpResponse.ToString());
-                    Console.WriteLine("This message was sent from " +
-                                                address +
-                                                " on their port number " +
-                                                port.ToString());
-                }
+                if (tcpResponse.Equals(String.Empty)) throw new NotImplementedException();
             }
-            catch (SocketException socketException)
+            else
             {
-                throw new SocketException();
+                // Uses the IPEndPoint object to determine which of these two hosts responded.
+                Console.WriteLine("This is the message you received " +
+                                             udpResponse.ToString());
+                Console.WriteLine("This message was sent from " +
+                                            address +
+                                            " on their port number " +
+                                            port.ToString());
+
+                //_challengeToken = GetChallengeToken(udpResponse);
             }
         }
 
-        public Server getServer()
+        public Server GetServer()
         {
             //TODO: Return server object with fetched data from the request.
             return new Server("dummy", true);
         }
 
-        public string sendByUdp(string address, int port)
+        public string SendByUdp(string address, int port)
         {
             try
             {
                 //Check if address is a domain name.
-                if (isDomainAddress(address))
+                if (IsDomainAddress(address))
                 {
-                    address = getIpFromDomain(address);
+                    address = GetIpFromDomain(address);
                 }
 
                 UdpClient udpClient = new UdpClient();
-
                 udpClient.Connect(address, port);
 
                 List<byte> message = new List<byte>();
-                message.AddRange(Magic);
-                message.Add(Handshake);
-                message.Add(Stat);
-                message.AddRange(SessionID);
+                message.AddRange(_magic);
+                message.Add(_handshake);
+                message.Add(_stat);
+                byte[] sessionBytes = BitConverter.GetBytes(_sessionId);
+                Array.Reverse(sessionBytes);
+                message.AddRange(sessionBytes);
 
                 Byte[] handshakeMessage = message.ToArray().ToArray();
 
                 udpClient.Send(handshakeMessage, handshakeMessage.Length);
 
-                //IPEndPoint object will allow us to read datagrams sent from any source.
                 IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
 
-                // Blocks until a message returns on this socket from a remote host.
                 Byte[] receiveBytes = udpClient.Receive(ref RemoteIpEndPoint);
                 string returnData = Encoding.ASCII.GetString(receiveBytes);
+                string test = returnData.Trim();
+
+                _challengeTimer.Elapsed += RegenerateChallengeToken;
+                _challengeTimer.Interval = 30000;
+                _challengeTimer.Start();
+
+                _challengeToken = GetChallengeToken(receiveBytes);
 
                 udpClient.Close();
 
-                if (returnData.Equals(String.Empty))
+                if (receiveBytes.Length == 0)
                 {
-                    return String.Empty;
+                    return string.Empty;
+                    //return new byte[] { };
                 }
                 else
                 {
                     return returnData;
+                    //return receiveBytes;
                 }
             }
             catch (SocketException exception)
@@ -97,14 +108,14 @@ namespace MCQuery
             }
         }
 
-        private string getIpFromDomain(string address)
+        private string GetIpFromDomain(string address)
         {
             IPAddress[] addresses = Dns.GetHostAddresses(address);
 
-            return addresses[0].AddressFamily.ToString();
+            return addresses[0].ToString();
         }
 
-        private bool isDomainAddress(string address)
+        private bool IsDomainAddress(string address)
         {
             try
             {
@@ -126,10 +137,43 @@ namespace MCQuery
             }
         }
 
-        public string sendByTcp(string address, int port)
+        public string SendByTcp(string address, int port)
         {
             //TODO: Implement sending packet by TCP.
             return String.Empty;
+        }
+
+        private Int32 GetChallengeToken(byte[] message)
+        {
+            //TODO: Remove 0-4 and 13 index from receiveBytes to get the ChallengeToken
+
+            byte[] challengeToken = new byte[4];
+
+            string response = "";
+
+            for (int i = 0; i < message.Length; i++)
+            {
+                if(i > 5)
+                {
+                    byte item = message[i];
+                    response += Encoding.ASCII.GetString(new byte[] { item });
+                }
+            }
+
+            response = response.Remove(response.Length - 1, 1);
+            Int32 token = Int32.Parse(response);
+
+            if (!token.Equals(0))
+            {
+                return token;
+            }
+
+            return 0;
+        }
+
+        private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)
+        {
+            //Run the init request to get the token again.
         }
     }
 }
