@@ -10,6 +10,9 @@ namespace MCQuery
 {
     public class Connection
     {
+        private string _address = "";
+        private int _port = 0;
+
         //Byte - Magic Number
         private byte[] _magic = { 0xFE, 0xFD };
         //Byte - Connection Type
@@ -47,6 +50,8 @@ namespace MCQuery
             }
             else
             {
+                _address = address;
+                _port = port;
                 _challengeToken = GetChallengeToken(udpResponse);
             }
         }
@@ -158,7 +163,8 @@ namespace MCQuery
 
         private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)
         {
-            //Run the init request to get the token again.
+            //Run handshake again to obtain new challenge token.
+            Handshake(_address, _port);
         }
     }
 }
