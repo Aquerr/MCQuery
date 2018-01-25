@@ -15,34 +15,39 @@ namespace MCQuery
         //Byte - Connection Type
         private byte _handshake = 0x09;
         private byte _stat = 0x00;
-        //Int32 - SessionIs has
-        private Int32 _sessionId = 1;
-        //Int32 - Challenge Token
-        private Int32 _challengeToken = 0;
+        //Int32 - but written in hex format as byte array - SessionIs has
+        private byte[] _sessionId = { 0x01, 0x01, 0x01, 0x01 };
+        //Int32 - but written as byte array - Challenge Token
+        private byte[] _challengeToken;
 
         private Timer _challengeTimer = new Timer();
 
         public Connection(string address, int port)
         {
-            string udpResponse = SendByUdp(address, port);
+            //Do the handshake with the server to receive a challenge token.
+            Handshake(address, port);
+        }
 
-            if (udpResponse.Equals(String.Empty))
+        private void Handshake(string address, int port)
+        {
+            List<byte> message = new List<byte>();
+            message.AddRange(_magic);
+            message.Add(_handshake);
+            message.AddRange(_sessionId);
+
+            Byte[] handshakeMessage = message.ToArray();
+            byte[] udpResponse = SendByUdp(address, port, handshakeMessage);
+
+            //If handshake could not be done through UDP then try connecting through TCP.
+            if (udpResponse.Length == 0)
             {
-                string tcpResponse = SendByTcp(address, port);
+                byte[] tcpResponse = SendByTcp(address, port);
 
-                if (tcpResponse.Equals(String.Empty)) throw new NotImplementedException();
+                if (tcpResponse.Length == 0) throw new NotImplementedException();
             }
             else
             {
-                // Uses the IPEndPoint object to determine which of these two hosts responded.
-                Console.WriteLine("This is the message you received " +
-                                             udpResponse.ToString());
-                Console.WriteLine("This message was sent from " +
-                                            address +
-                                            " on their port number " +
-                                            port.ToString());
-
-                //_challengeToken = GetChallengeToken(udpResponse);
+                _challengeToken = GetChallengeToken(udpResponse);
             }
         }
 
@@ -52,7 +57,7 @@ namespace MCQuery
             return new Server("dummy", true);
         }
 
-        public string SendByUdp(string address, int port)
+        public byte[] SendByUdp(string address, int port, byte[] data)
         {
             try
             {
@@ -65,45 +70,32 @@ namespace MCQuery
                 UdpClient udpClient = new UdpClient();
                 udpClient.Connect(address, port);
 
-                List<byte> message = new List<byte>();
-                message.AddRange(_magic);
-                message.Add(_handshake);
-                message.Add(_stat);
-                byte[] sessionBytes = BitConverter.GetBytes(_sessionId);
-                Array.Reverse(sessionBytes);
-                message.AddRange(sessionBytes);
-
-                Byte[] handshakeMessage = message.ToArray().ToArray();
-
-                udpClient.Send(handshakeMessage, handshakeMessage.Length);
+                udpClient.Send(data, data.Length);
+                udpClient.Client.SendTimeout = 5000; //Timeout after 5 seconds
+                udpClient.Client.ReceiveTimeout = 5000; //Timeout after 5 seconds
 
                 IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
 
-                Byte[] receiveBytes = udpClient.Receive(ref RemoteIpEndPoint);
-                string returnData = Encoding.ASCII.GetString(receiveBytes);
-                string test = returnData.Trim();
+                Byte[] receiveData = udpClient.Receive(ref RemoteIpEndPoint);
 
                 _challengeTimer.Elapsed += RegenerateChallengeToken;
                 _challengeTimer.Interval = 30000;
                 _challengeTimer.Start();
 
-                _challengeToken = GetChallengeToken(receiveBytes);
-
                 udpClient.Close();
 
-                if (receiveBytes.Length == 0)
+                if (receiveData.Length == 0)
                 {
-                    return string.Empty;
-                    //return new byte[] { };
+                    return new byte[] { };
                 }
                 else
                 {
-                    return returnData;
-                    //return receiveBytes;
+                    return receiveData;
                 }
             }
             catch (SocketException exception)
             {
+                Console.WriteLine("SocketException: {0}", exception.Message);
                 throw new SocketException();
             }
         }
@@ -130,45 +122,38 @@ namespace MCQuery
                     return false;
                 }
             }
-            catch (Exception exception)
+            catch (SocketException exception)
             {
-                Console.WriteLine(exception.Message);
-                throw new SocketException();
+                throw new Exception("Exception: " + exception.Message);
             }
         }
 
-        public string SendByTcp(string address, int port)
+        public byte[] SendByTcp(string address, int port)
         {
             //TODO: Implement sending packet by TCP.
-            return String.Empty;
+            return new byte[] { };
         }
 
-        private Int32 GetChallengeToken(byte[] message)
+        private byte[] GetChallengeToken(byte[] message)
         {
-            //TODO: Remove 0-4 and 13 index from receiveBytes to get the ChallengeToken
+            //Index 0 = Type (Handshake)
+            //Index 1 - 4 = SessionId
+            //Index 5 and further is a challenge token which we need to extract.
 
-            byte[] challengeToken = new byte[4];
-
-            string response = "";
+            byte[] challengeToken = new byte[message.Length - 5];
 
             for (int i = 0; i < message.Length; i++)
             {
-                if(i > 5)
+                if(i >= 5)
                 {
                     byte item = message[i];
-                    response += Encoding.ASCII.GetString(new byte[] { item });
+                    challengeToken[i - 5] = item;
                 }
             }
 
-            response = response.Remove(response.Length - 1, 1);
-            Int32 token = Int32.Parse(response);
+            challengeToken = challengeToken.Take(challengeToken.Count() - 1).ToArray();
 
-            if (!token.Equals(0))
-            {
-                return token;
-            }
-
-            return 0;
+            return challengeToken;
         }
 
         private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)

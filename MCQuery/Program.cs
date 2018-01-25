@@ -7,8 +7,6 @@ namespace MCQuery
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello World!");
-
             Console.WriteLine("Server IP Address: ");
             string ipAddress = Console.ReadLine();
 
