@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\MCQuery-Lib\MCQuery.csproj" />
+    <ProjectReference Include="..\MCQuery\MCQuery.csproj" />
   </ItemGroup>
 
 </Project>

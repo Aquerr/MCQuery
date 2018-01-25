@@ -7,8 +7,8 @@
     <ProjectGuid>{B439EF43-29DE-4490-9542-83111E9CF88B}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>MCQuery_Lib</RootNamespace>
-    <AssemblyName>MCQuery-Lib</AssemblyName>
+    <RootNamespace>MCQuery</RootNamespace>
+    <AssemblyName>MCQuery</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
