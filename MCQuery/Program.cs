@@ -18,6 +18,7 @@ namespace MCQuery
             if (port != 0)
             {
                 Connection connection = new Connection(ipAddress, port); //This should give us a challenge token needed for getting data from the sever.
+                Server basicServer = connection.GetBasicServerInfo();
             }
             else
             {

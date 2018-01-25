@@ -12,11 +12,11 @@ namespace MCQuery
         public List<String> PlayerList { get; set; }
         public string Motd { get; set; }
         public string GameMode { get; set; }
-        public bool Status { get; set; }
+        public bool IsOnline { get; set; }
 
-        public Server(string name, bool status)
+        public Server(string name, bool isOnline)
         {
-            if (status)
+            if (isOnline)
             {
 
             }

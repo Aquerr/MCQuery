@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -13,16 +14,21 @@ namespace MCQuery
         private string _address = "";
         private int _port = 0;
 
-        //Byte - Magic Number
+        //Byte[] - Magic Number
         private byte[] _magic = { 0xFE, 0xFD };
-        //Byte - Connection Type
-        private byte _handshake = 0x09;
-        private byte _stat = 0x00;
-        //Int32 - but written in hex format as byte array - SessionIs has
+
+        //Byte[] - Connection Type
+        private byte[] _handshake = { 0x09 };
+        private byte[] _stat = { 0x00 };
+
+        //Byte[] - but written in hex format as byte array - SessionIs has
         private byte[] _sessionId = { 0x01, 0x01, 0x01, 0x01 };
-        //Int32 - but written as byte array - Challenge Token
+
+        //Byte[] - but written as byte array - Challenge Token
         private byte[] _challengeToken;
 
+        private UdpClient udpClient;
+        private TcpClient tcpClient;
         private Timer _challengeTimer = new Timer();
 
         public Connection(string address, int port)
@@ -35,7 +41,7 @@ namespace MCQuery
         {
             List<byte> message = new List<byte>();
             message.AddRange(_magic);
-            message.Add(_handshake);
+            message.AddRange(_handshake);
             message.AddRange(_sessionId);
 
             Byte[] handshakeMessage = message.ToArray();
@@ -56,7 +62,48 @@ namespace MCQuery
             }
         }
 
-        public Server GetServer()
+        private byte[] GetBasicStat(string address, int port)
+        {
+            List<byte> message = new List<byte>();
+            message.AddRange(_magic);
+            message.AddRange(_stat);
+            message.AddRange(_sessionId);
+            message.AddRange(_challengeToken);
+            byte[] basicStatMessage = message.ToArray();
+
+            byte[] udpResponse = SendByUdp(address, port, basicStatMessage);
+
+            if (udpResponse.Length == 0)
+            {
+                byte[] tcpResponse = SendByTcp(address, port);
+
+                if (tcpResponse.Length == 0) throw new NotImplementedException();
+                else return tcpResponse;
+            }
+            else
+            {
+                return udpResponse;
+            }
+        }
+
+        public Server GetBasicServerInfo()
+        {
+            byte[] responseData = GetBasicStat(_address, _port);
+
+            string stringData = Encoding.ASCII.GetString(responseData);
+            string[] informations = stringData.Split(new string[] { @"\0" }, StringSplitOptions.None);
+
+            List<String> serverInfo = new List<String>();
+
+            foreach(string info in informations)
+            {
+                //Do something with info.
+            }
+
+            return null;
+        }
+
+        public Server GetFullServerInfo()
         {
             //TODO: Return server object with fetched data from the request.
             return new Server("dummy", true);
@@ -72,22 +119,26 @@ namespace MCQuery
                     address = GetIpFromDomain(address);
                 }
 
-                UdpClient udpClient = new UdpClient();
-                udpClient.Connect(address, port);
+                if (udpClient == null)
+                {
+                    //Set up UDP Client
+                    udpClient = new UdpClient();
+                    udpClient.Connect(address, port);
+                    udpClient.Client.SendTimeout = 10000; //Timeout after 10 seconds
+                    udpClient.Client.ReceiveTimeout = 10000; //Timeout after 10 seconds
+
+                    _challengeTimer.Elapsed += RegenerateChallengeToken;
+                    _challengeTimer.Interval = 30000;
+                    _challengeTimer.Start();
+                }
 
                 udpClient.Send(data, data.Length);
-                udpClient.Client.SendTimeout = 5000; //Timeout after 5 seconds
-                udpClient.Client.ReceiveTimeout = 5000; //Timeout after 5 seconds
 
                 IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
 
-                Byte[] receiveData = udpClient.Receive(ref RemoteIpEndPoint);
+                byte[] receiveData = udpClient.Receive(ref RemoteIpEndPoint);
 
-                _challengeTimer.Elapsed += RegenerateChallengeToken;
-                _challengeTimer.Interval = 30000;
-                _challengeTimer.Start();
-
-                udpClient.Close();
+                Console.WriteLine(Encoding.ASCII.GetString(receiveData));
 
                 if (receiveData.Length == 0)
                 {
@@ -147,24 +198,48 @@ namespace MCQuery
 
             byte[] challengeToken = new byte[message.Length - 5];
 
+            string response = "";
+
             for (int i = 0; i < message.Length; i++)
             {
-                if(i >= 5)
+                if (i >= 5)
                 {
                     byte item = message[i];
-                    challengeToken[i - 5] = item;
+                    response += Encoding.ASCII.GetString(new byte[] { item });
                 }
             }
+            Int32 tokenInt32 = Int32.Parse(response);
 
-            challengeToken = challengeToken.Take(challengeToken.Count() - 1).ToArray();
+            byte[] challenge = new byte[]
+            {
+                (byte)(tokenInt32 >> 24 & 0xFF),
+                (byte)(tokenInt32 >> 16 & 0xFF),
+                (byte)(tokenInt32 >> 8 & 0xFF),
+                (byte)(tokenInt32 >> 0 & 0xFF)
+            };
 
-            return challengeToken;
+            return challenge;
         }
 
         private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)
         {
+            Console.WriteLine(_challengeTimer.Interval);
             //Run handshake again to obtain new challenge token.
             Handshake(_address, _port);
+        }
+
+        public void Close()
+        {
+            _challengeTimer.Stop();
+
+            if(udpClient != null)
+            {
+                udpClient.Close();
+            }
+            if (tcpClient != null)
+            {
+                tcpClient.Close();
+            }
         }
     }
 }
