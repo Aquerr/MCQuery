@@ -8,23 +8,18 @@ namespace MCQuery
 {
     public class Server
     {
-        public string Name { get; set; }
-        public List<String> PlayerList { get; set; }
         public string Motd { get; set; }
-        public string GameMode { get; set; }
+        public string GameType { get; set; }
+        public string Map { get; set; }
+        public int PlayerCount { get; set; }
+        public int MaxPlayers { get; set; }
+        public string Address { get; set; }
+        public string Port { get; set; }
         public bool IsOnline { get; set; }
 
-        public Server(string name, bool isOnline)
+        public Server(bool isOnline)
         {
-            if (isOnline)
-            {
-
-            }
-        }
-
-        public Server(string name, string gamemode, bool status, List<String> playerlist)
-        {
-
+            IsOnline = isOnline;
         }
     }
 }

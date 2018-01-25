@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -21,7 +20,7 @@ namespace MCQuery
         private byte[] _handshake = { 0x09 };
         private byte[] _stat = { 0x00 };
 
-        //Byte[] - but written in hex format as byte array - SessionIs has
+        //Int32 - but written in hex format as byte array - SessionIs has
         private byte[] _sessionId = { 0x01, 0x01, 0x01, 0x01 };
 
         //Byte[] - but written as byte array - Challenge Token
@@ -77,7 +76,7 @@ namespace MCQuery
             {
                 byte[] tcpResponse = SendByTcp(address, port);
 
-                if (tcpResponse.Length == 0) throw new NotImplementedException();
+                if (tcpResponse.Length == 0) return new byte[] { };
                 else return tcpResponse;
             }
             else
@@ -90,14 +89,38 @@ namespace MCQuery
         {
             byte[] responseData = GetBasicStat(_address, _port);
 
-            string stringData = Encoding.ASCII.GetString(responseData);
-            string[] informations = stringData.Split(new string[] { @"\0" }, StringSplitOptions.None);
-
-            List<String> serverInfo = new List<String>();
-
-            foreach(string info in informations)
+            if(responseData.Length != 0)
             {
-                //Do something with info.
+                responseData = responseData.Skip(5).ToArray();
+
+                string stringData = Encoding.ASCII.GetString(responseData);
+                string[] informations = stringData.Split(new string[] { "\0" }, StringSplitOptions.None);
+
+                //0 = MOTD
+                //1 = GameType
+                //2 = Map
+                //3 = Number of Players
+                //4 = Maxnumber of Players
+                //5 = Host Port
+                //6 = Host IP
+
+                if (informations[5].StartsWith(":k"))
+                {
+                    informations[5] = informations[5].Substring(2);
+                }
+
+                Server server = new Server(true)
+                {
+                    Motd = informations[0],
+                    GameType = informations[1],
+                    Map = informations[2],
+                    PlayerCount = int.Parse(informations[3]),
+                    MaxPlayers = int.Parse(informations[4]),
+                    Address = informations[5],
+                    Port = informations[6] //TODO: Port is currently missing... It needs to be fixed.
+                };
+
+                return server;
             }
 
             return null;
@@ -106,7 +129,7 @@ namespace MCQuery
         public Server GetFullServerInfo()
         {
             //TODO: Return server object with fetched data from the request.
-            return new Server("dummy", true);
+            return new Server(false);
         }
 
         public byte[] SendByUdp(string address, int port, byte[] data)
