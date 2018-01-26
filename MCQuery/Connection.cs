@@ -14,21 +14,21 @@ namespace MCQuery
         private int _port = 0;
 
         //Byte[] - Magic Number
-        private byte[] _magic = { 0xFE, 0xFD };
+        private readonly byte[] _magic = { 0xFE, 0xFD };
 
         //Byte[] - Connection Type
-        private byte[] _handshake = { 0x09 };
-        private byte[] _stat = { 0x00 };
+        private readonly byte[] _handshake = { 0x09 };
+        private readonly byte[] _stat = { 0x00 };
 
         //Int32 - but written in hex format as byte array - SessionIs has
-        private byte[] _sessionId = { 0x01, 0x01, 0x01, 0x01 };
+        private readonly byte[] _sessionId = { 0x01, 0x01, 0x01, 0x01 };
 
         //Byte[] - but written as byte array - Challenge Token
         private byte[] _challengeToken;
 
-        private UdpClient udpClient;
-        private TcpClient tcpClient;
-        private Timer _challengeTimer = new Timer();
+        private UdpClient _udpClient;
+        private TcpClient _tcpClient;
+        private readonly Timer _challengeTimer = new Timer();
 
         public Connection(string address, int port)
         {
@@ -71,6 +71,31 @@ namespace MCQuery
             byte[] basicStatMessage = message.ToArray();
 
             byte[] udpResponse = SendByUdp(address, port, basicStatMessage);
+
+            if (udpResponse.Length == 0)
+            {
+                byte[] tcpResponse = SendByTcp(address, port);
+
+                if (tcpResponse.Length == 0) return new byte[] { };
+                else return tcpResponse;
+            }
+            else
+            {
+                return udpResponse;
+            }
+        }
+
+        private byte[] GetFullStat(string address, int port)
+        {
+            List<byte> message = new List<byte>();
+            message.AddRange(_magic);
+            message.AddRange(_stat);
+            message.AddRange(_sessionId);
+            message.AddRange(_challengeToken);
+            message.AddRange(new byte[] {0x00, 0x00, 0x00, 0x00}); //Padding
+            byte[] fullStatMessage = message.ToArray();
+
+            byte[] udpResponse = SendByUdp(address, port, fullStatMessage);
 
             if (udpResponse.Length == 0)
             {
@@ -128,8 +153,55 @@ namespace MCQuery
 
         public Server GetFullServerInfo()
         {
-            //TODO: Return server object with fetched data from the request.
-            return new Server(false);
+            byte[] responseData = GetFullStat(_address, _port);
+
+            if (responseData.Length != 0)
+            {
+                //Skip first 11 bytes 
+                responseData = responseData.Skip(16).ToArray();
+
+                string stringData = Encoding.ASCII.GetString(responseData);
+
+                //This array should contain an array with server informations and an array with playernames
+                string[] informations = stringData.Split(new string[] { "player_" }, StringSplitOptions.None);
+
+                string[] serverInfo = informations[0].Split(new string[] { "\0" }, StringSplitOptions.None);
+                string[] playerList = informations[1].Split(new string[] { "\0" }, StringSplitOptions.None);
+
+                //Split serverInfo to key - value pair.
+
+                Dictionary<string, string> serverDict = new Dictionary<string, string>();
+               
+                for (int i = 0; i < serverInfo.Length; i += 2)
+                {
+                    serverDict.Add(serverInfo[i], serverInfo[i+1]);
+                }
+
+                //0 = MOTD
+                //1 = GameType
+                //2 = Map
+                //3 = Number of Players
+                //4 = Maxnumber of Players
+                //5 = Host Port
+                //6 = Host IP
+
+                Server server = new Server(true)
+                {
+                    Motd = serverDict["hostname"],
+                    GameType = serverDict["gametype"],
+                    Map = serverDict["map"],
+                    PlayerCount = int.Parse(serverDict["numplayers"]),
+                    MaxPlayers = int.Parse(serverDict["maxplayers"]),
+                    Plugins = serverDict["plugins"],
+                    Address = serverDict["hostip"],
+                    Port = serverDict["hostport"], //TODO: Port is currently missing... It needs to be fixed.
+                    Version = serverDict["version"]
+                };
+
+                return server;
+            }
+
+            return null;
         }
 
         public byte[] SendByUdp(string address, int port, byte[] data)
@@ -142,24 +214,24 @@ namespace MCQuery
                     address = GetIpFromDomain(address);
                 }
 
-                if (udpClient == null)
+                if (_udpClient == null)
                 {
                     //Set up UDP Client
-                    udpClient = new UdpClient();
-                    udpClient.Connect(address, port);
-                    udpClient.Client.SendTimeout = 10000; //Timeout after 10 seconds
-                    udpClient.Client.ReceiveTimeout = 10000; //Timeout after 10 seconds
+                    _udpClient = new UdpClient();
+                    _udpClient.Connect(address, port);
+                    _udpClient.Client.SendTimeout = 10000; //Timeout after 10 seconds
+                    _udpClient.Client.ReceiveTimeout = 10000; //Timeout after 10 seconds
 
                     _challengeTimer.Elapsed += RegenerateChallengeToken;
                     _challengeTimer.Interval = 30000;
                     _challengeTimer.Start();
                 }
 
-                udpClient.Send(data, data.Length);
+                _udpClient.Send(data, data.Length);
 
-                IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
+                IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
 
-                byte[] receiveData = udpClient.Receive(ref RemoteIpEndPoint);
+                byte[] receiveData = _udpClient.Receive(ref remoteIpEndPoint);
 
                 Console.WriteLine(Encoding.ASCII.GetString(receiveData));
 
@@ -246,7 +318,6 @@ namespace MCQuery
 
         private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)
         {
-            Console.WriteLine(_challengeTimer.Interval);
             //Run handshake again to obtain new challenge token.
             Handshake(_address, _port);
         }
@@ -255,13 +326,13 @@ namespace MCQuery
         {
             _challengeTimer.Stop();
 
-            if(udpClient != null)
+            if(_udpClient != null)
             {
-                udpClient.Close();
+                _udpClient.Close();
             }
-            if (tcpClient != null)
+            if (_tcpClient != null)
             {
-                tcpClient.Close();
+                _tcpClient.Close();
             }
         }
     }
