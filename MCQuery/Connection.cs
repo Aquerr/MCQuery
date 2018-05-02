@@ -8,257 +8,85 @@ using System.Timers;
 
 namespace MCQuery
 {
-    public class Connection
-    {
-        private string _address = "";
-        private int _port = 0;
+	public abstract class Connection : IDisposable
+	{
+		private string _address = "";
+		private int _port = 0;
 
-        //Byte[] - Magic Number
-        private readonly byte[] _magic = { 0xFE, 0xFD };
+		private UdpClient _udpClient;
+		private TcpClient _tcpClient;
 
-        //Byte[] - Connection Type
-        private readonly byte[] _handshake = { 0x09 };
-        private readonly byte[] _stat = { 0x00 };
+		public Connection(string address, int port)
+		{
+			_address = address;
+			_port = port;
+		}
 
-        //Int32 - but written in hex format as byte array - SessionIs has
-        private readonly byte[] _sessionId = { 0x01, 0x01, 0x01, 0x01 };
+		//public Query GetQueryConnection()
+		//{
+		//	return new Query(_address, _port);
+		//}
 
-        //Byte[] - but written as byte array - Challenge Token
-        private byte[] _challengeToken;
+		//public Rcon GetRconConnection(string password)
+		//{
+		//	return new Rcon(_address, _port, password);
+		//}
 
-        private UdpClient _udpClient;
-        private TcpClient _tcpClient;
-        private readonly Timer _challengeTimer = new Timer();
+		protected byte[] SendByUdp(string address, int port, byte[] data)
+		{
+			try
+			{
+				//Check if address is a domain name.
+				if (IsDomainAddress(address))
+				{
+					address = GetIpFromDomain(address);
+				}
 
-        public Connection(string address, int port)
-        {
-            //Do the handshake with the server to receive a challenge token.
-            Handshake(address, port);
-        }
+				if (_udpClient == null)
+				{
+					//Set up UDP Client
+					_udpClient = new UdpClient();
+					_udpClient.Connect(address, port);
+					_udpClient.Client.SendTimeout = 10000; //Timeout after 10 seconds
+					_udpClient.Client.ReceiveTimeout = 10000; //Timeout after 10 seconds
 
-        private void Handshake(string address, int port)
-        {
-            List<byte> message = new List<byte>();
-            message.AddRange(_magic);
-            message.AddRange(_handshake);
-            message.AddRange(_sessionId);
+					_challengeTimer.Elapsed += RegenerateChallengeToken;
+					_challengeTimer.Interval = 30000;
+					_challengeTimer.Start();
+				}
 
-            Byte[] handshakeMessage = message.ToArray();
-            byte[] udpResponse = SendByUdp(address, port, handshakeMessage);
+				_udpClient.Send(data, data.Length);
 
-            //If handshake could not be done through UDP then try connecting through TCP.
-            if (udpResponse.Length == 0)
-            {
-                byte[] tcpResponse = SendByTcp(address, port);
+				IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
 
-                if (tcpResponse.Length == 0) throw new NotImplementedException();
-            }
-            else
-            {
-                _address = address;
-                _port = port;
-                _challengeToken = GetChallengeToken(udpResponse);
-            }
-        }
+				byte[] receiveData = _udpClient.Receive(ref remoteIpEndPoint);
 
-        private byte[] GetBasicStat(string address, int port)
-        {
-            List<byte> message = new List<byte>();
-            message.AddRange(_magic);
-            message.AddRange(_stat);
-            message.AddRange(_sessionId);
-            message.AddRange(_challengeToken);
-            byte[] basicStatMessage = message.ToArray();
+				Console.WriteLine(Encoding.ASCII.GetString(receiveData));
 
-            byte[] udpResponse = SendByUdp(address, port, basicStatMessage);
+				if (receiveData.Length == 0)
+				{
+					return new byte[] { };
+				}
+				else
+				{
+					return receiveData;
+				}
+			}
+			catch (SocketException exception)
+			{
+				Console.WriteLine("SocketException: {0}", exception.Message);
+				throw new SocketException();
+			}
+		}
 
-            if (udpResponse.Length == 0)
-            {
-                byte[] tcpResponse = SendByTcp(address, port);
+		protected string GetIpFromDomain(string address)
+		{
+			IPAddress[] addresses = Dns.GetHostAddresses(address);
 
-                if (tcpResponse.Length == 0) return new byte[] { };
-                else return tcpResponse;
-            }
-            else
-            {
-                return udpResponse;
-            }
-        }
+			return addresses[0].ToString();
+		}
 
-        private byte[] GetFullStat(string address, int port)
-        {
-            List<byte> message = new List<byte>();
-            message.AddRange(_magic);
-            message.AddRange(_stat);
-            message.AddRange(_sessionId);
-            message.AddRange(_challengeToken);
-            message.AddRange(new byte[] {0x00, 0x00, 0x00, 0x00}); //Padding
-            byte[] fullStatMessage = message.ToArray();
-
-            byte[] udpResponse = SendByUdp(address, port, fullStatMessage);
-
-            if (udpResponse.Length == 0)
-            {
-                byte[] tcpResponse = SendByTcp(address, port);
-
-                if (tcpResponse.Length == 0) return new byte[] { };
-                else return tcpResponse;
-            }
-            else
-            {
-                return udpResponse;
-            }
-        }
-
-        public Server GetBasicServerInfo()
-        {
-            byte[] responseData = GetBasicStat(_address, _port);
-
-            if(responseData.Length != 0)
-            {
-                responseData = responseData.Skip(5).ToArray();
-
-                string stringData = Encoding.ASCII.GetString(responseData);
-                string[] informations = stringData.Split(new string[] { "\0" }, StringSplitOptions.None);
-
-                //0 = MOTD
-                //1 = GameType
-                //2 = Map
-                //3 = Number of Players
-                //4 = Maxnumber of Players
-                //5 = Host Port
-                //6 = Host IP
-
-                if (informations[5].StartsWith(":k"))
-                {
-                    informations[5] = informations[5].Substring(2);
-                }
-
-                Server server = new Server(true)
-                {
-                    Motd = informations[0],
-                    GameType = informations[1],
-                    Map = informations[2],
-                    PlayerCount = int.Parse(informations[3]),
-                    MaxPlayers = int.Parse(informations[4]),
-                    Address = informations[5],
-                    Port = informations[6] //TODO: Port is currently missing... It needs to be fixed.
-                };
-
-                return server;
-            }
-
-            return null;
-        }
-
-        public Server GetFullServerInfo()
-        {
-            byte[] responseData = GetFullStat(_address, _port);
-
-            if (responseData.Length != 0)
-            {
-                //Skip first 11 bytes 
-                responseData = responseData.Skip(16).ToArray();
-
-                string stringData = Encoding.ASCII.GetString(responseData);
-
-                //This array should contain an array with server informations and an array with playernames
-                string[] informations = stringData.Split(new string[] { "player_" }, StringSplitOptions.None);
-
-                string[] serverInfo = informations[0].Split(new string[] { "\0" }, StringSplitOptions.None);
-                string[] playerList = informations[1].Split(new string[] { "\0" }, StringSplitOptions.None);
-
-                //Split serverInfo to key - value pair.
-
-                Dictionary<string, string> serverDict = new Dictionary<string, string>();
-               
-                for (int i = 0; i < serverInfo.Length; i += 2)
-                {
-                    serverDict.Add(serverInfo[i], serverInfo[i+1]);
-                }
-
-                //0 = MOTD
-                //1 = GameType
-                //2 = Map
-                //3 = Number of Players
-                //4 = Maxnumber of Players
-                //5 = Host Port
-                //6 = Host IP
-
-                Server server = new Server(true)
-                {
-                    Motd = serverDict["hostname"],
-                    GameType = serverDict["gametype"],
-                    Map = serverDict["map"],
-                    PlayerCount = int.Parse(serverDict["numplayers"]),
-                    MaxPlayers = int.Parse(serverDict["maxplayers"]),
-                    Plugins = serverDict["plugins"],
-                    Address = serverDict["hostip"],
-                    Port = serverDict["hostport"], //TODO: Port is currently missing... It needs to be fixed.
-                    Version = serverDict["version"]
-                };
-
-                return server;
-            }
-
-            return null;
-        }
-
-        public byte[] SendByUdp(string address, int port, byte[] data)
-        {
-            try
-            {
-                //Check if address is a domain name.
-                if (IsDomainAddress(address))
-                {
-                    address = GetIpFromDomain(address);
-                }
-
-                if (_udpClient == null)
-                {
-                    //Set up UDP Client
-                    _udpClient = new UdpClient();
-                    _udpClient.Connect(address, port);
-                    _udpClient.Client.SendTimeout = 10000; //Timeout after 10 seconds
-                    _udpClient.Client.ReceiveTimeout = 10000; //Timeout after 10 seconds
-
-                    _challengeTimer.Elapsed += RegenerateChallengeToken;
-                    _challengeTimer.Interval = 30000;
-                    _challengeTimer.Start();
-                }
-
-                _udpClient.Send(data, data.Length);
-
-                IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
-
-                byte[] receiveData = _udpClient.Receive(ref remoteIpEndPoint);
-
-                Console.WriteLine(Encoding.ASCII.GetString(receiveData));
-
-                if (receiveData.Length == 0)
-                {
-                    return new byte[] { };
-                }
-                else
-                {
-                    return receiveData;
-                }
-            }
-            catch (SocketException exception)
-            {
-                Console.WriteLine("SocketException: {0}", exception.Message);
-                throw new SocketException();
-            }
-        }
-
-        private string GetIpFromDomain(string address)
-        {
-            IPAddress[] addresses = Dns.GetHostAddresses(address);
-
-            return addresses[0].ToString();
-        }
-
-        private bool IsDomainAddress(string address)
+		protected bool IsDomainAddress(string address)
         {
             try
             {
@@ -279,53 +107,14 @@ namespace MCQuery
             }
         }
 
-        public byte[] SendByTcp(string address, int port)
+		protected byte[] SendByTcp(string address, int port)
         {
             //TODO: Implement sending packet by TCP.
             return new byte[] { };
         }
 
-        private byte[] GetChallengeToken(byte[] message)
+		protected virtual void Close()
         {
-            //Index 0 = Type (Handshake)
-            //Index 1 - 4 = SessionId
-            //Index 5 and further is a challenge token which we need to extract.
-
-            byte[] challengeToken = new byte[message.Length - 5];
-
-            string response = "";
-
-            for (int i = 0; i < message.Length; i++)
-            {
-                if (i >= 5)
-                {
-                    byte item = message[i];
-                    response += Encoding.ASCII.GetString(new byte[] { item });
-                }
-            }
-            Int32 tokenInt32 = Int32.Parse(response);
-
-            byte[] challenge = new byte[]
-            {
-                (byte)(tokenInt32 >> 24 & 0xFF),
-                (byte)(tokenInt32 >> 16 & 0xFF),
-                (byte)(tokenInt32 >> 8 & 0xFF),
-                (byte)(tokenInt32 >> 0 & 0xFF)
-            };
-
-            return challenge;
-        }
-
-        private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)
-        {
-            //Run handshake again to obtain new challenge token.
-            Handshake(_address, _port);
-        }
-
-        public void Close()
-        {
-            _challengeTimer.Stop();
-
             if(_udpClient != null)
             {
                 _udpClient.Close();
@@ -334,6 +123,45 @@ namespace MCQuery
             {
                 _tcpClient.Close();
             }
+
+			Dispose();
         }
-    }
+
+		#region IDisposable Support
+		private bool disposedValue = false; // To detect redundant calls
+
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!disposedValue)
+			{
+				if (disposing)
+				{
+					// TODO: dispose managed state (managed objects).
+				}
+
+
+
+				// TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
+				// TODO: set large fields to null.
+
+				disposedValue = true;
+			}
+		}
+
+		// TODO: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+		// ~Connection() {
+		//   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+		//   Dispose(false);
+		// }
+
+		// This code added to correctly implement the disposable pattern.
+		public void Dispose()
+		{
+			// Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+			Dispose(true);
+			// TODO: uncomment the following line if the finalizer is overridden above.
+			// GC.SuppressFinalize(this);
+		}
+		#endregion
+	}
 }
