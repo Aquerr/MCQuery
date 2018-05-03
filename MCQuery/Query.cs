@@ -49,9 +49,10 @@ namespace MCQuery
 			}
 			else
 			{
-				_address = address;
-				_port = port;
-				_challengeToken = GetChallengeToken(udpResponse);
+                _challengeTimer.Elapsed += RegenerateChallengeToken;
+                _challengeTimer.Interval = 30000;
+                _challengeTimer.Start();
+                _challengeToken = GetChallengeToken(udpResponse);
 			}
 		}
 
@@ -234,5 +235,10 @@ namespace MCQuery
 			//Run handshake again to obtain new challenge token.
 			Handshake(_address, _port);
 		}
-	}
+
+        public override void Close()
+        {
+            base.Close();
+        }
+    }
 }

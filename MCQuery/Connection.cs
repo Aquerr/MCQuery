@@ -10,8 +10,8 @@ namespace MCQuery
 {
 	public abstract class Connection : IDisposable
 	{
-		private string _address = "";
-		private int _port = 0;
+		protected internal string _address = "";
+		protected internal int _port = 0;
 
 		private UdpClient _udpClient;
 		private TcpClient _tcpClient;
@@ -21,16 +21,6 @@ namespace MCQuery
 			_address = address;
 			_port = port;
 		}
-
-		//public Query GetQueryConnection()
-		//{
-		//	return new Query(_address, _port);
-		//}
-
-		//public Rcon GetRconConnection(string password)
-		//{
-		//	return new Rcon(_address, _port, password);
-		//}
 
 		protected byte[] SendByUdp(string address, int port, byte[] data)
 		{
@@ -49,10 +39,6 @@ namespace MCQuery
 					_udpClient.Connect(address, port);
 					_udpClient.Client.SendTimeout = 10000; //Timeout after 10 seconds
 					_udpClient.Client.ReceiveTimeout = 10000; //Timeout after 10 seconds
-
-					_challengeTimer.Elapsed += RegenerateChallengeToken;
-					_challengeTimer.Interval = 30000;
-					_challengeTimer.Start();
 				}
 
 				_udpClient.Send(data, data.Length);
@@ -113,7 +99,7 @@ namespace MCQuery
             return new byte[] { };
         }
 
-		protected virtual void Close()
+		public virtual void Close()
         {
             if(_udpClient != null)
             {

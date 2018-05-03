@@ -1,10 +1,15 @@
 ﻿namespace MCQuery
 {
-	internal class Rcon : Connection
+	public class Rcon : Connection
 	{
-		internal Rcon(string address, int port, string password) : base(address, port)
+		public Rcon(string address, int port, string password) : base(address, port)
 		{
 
 		}
-	}
+
+        public override void Close()
+        {
+            base.Close();
+        }
+    }
 }
