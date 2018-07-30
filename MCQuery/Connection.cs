@@ -16,7 +16,7 @@ namespace MCQuery
 		private UdpClient _udpClient;
 		private TcpClient _tcpClient;
 
-		public Connection(string address, int port)
+	    protected Connection(string address, int port)
 		{
 			_address = address;
 			_port = port;
@@ -61,7 +61,7 @@ namespace MCQuery
 			catch (SocketException exception)
 			{
 				Console.WriteLine("SocketException: {0}", exception.Message);
-				throw new SocketException();
+				throw;
 			}
 		}
 
@@ -93,9 +93,31 @@ namespace MCQuery
             }
         }
 
-		protected byte[] SendByTcp(string address, int port)
+		protected byte[] SendByTcp(string address, int port, byte[] data)
         {
             //TODO: Implement sending packet by TCP.
+
+            try
+            {
+                if (_tcpClient == null)
+                {
+                    _tcpClient = new TcpClient(address, port);
+                    NetworkStream networkStream = _tcpClient.GetStream();
+
+                    byte[] buffer = new byte[1024];
+
+                    networkStream.Write(data, 0, data.Length);
+                    int byteCount = networkStream.Read(buffer, 0, buffer.Length);
+
+                    string receivedText = Encoding.ASCII.GetString(buffer, 0, byteCount);
+                }
+            }
+            catch (SocketException exception)
+            {
+                Console.WriteLine(exception);
+                throw;
+            }
+
             return new byte[] { };
         }
 

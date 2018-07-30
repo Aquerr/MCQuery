@@ -19,23 +19,24 @@ namespace MCQuery
             {
                 //Connection connection = new Connection(ipAddress, port); //This should give us a challenge token needed for getting data from the sever.
 
-                using (Query query = new Query(ipAddress, port))
-                {
+                //using (Query query = new Query(ipAddress, port))
+                //{
 
-                }
+                //}
 
-                Query serverQuery = new Query(ipAddress, port);
-				Server basicServer = serverQuery.GetBasicServerInfo();
-                serverQuery.Close();
+                //Query serverQuery = new Query(ipAddress, port);
+				//Server basicServer = serverQuery.GetBasicServerInfo();
+                //serverQuery.Close();
                 Rcon rconServer = new Rcon(ipAddress, port, "yolo");
+                rconServer.Login();
 
-                Console.WriteLine("Printing out server info: ");
-                Console.WriteLine("Server MOTD: {0}", basicServer.Motd);
-                Console.WriteLine("Server GameType: {0}", basicServer.GameType);
-                Console.WriteLine("Server Map: {0}", basicServer.Map);
-                Console.WriteLine("Server Player Count: {0}", basicServer.PlayerCount);
-                Console.WriteLine("Server Max Players: {0}", basicServer.MaxPlayers);
-                Console.WriteLine("Server Status: {0}", basicServer.IsOnline);
+                //Console.WriteLine("Printing out server info: ");
+                //Console.WriteLine("Server MOTD: {0}", basicServer.Motd);
+                //Console.WriteLine("Server GameType: {0}", basicServer.GameType);
+                //Console.WriteLine("Server Map: {0}", basicServer.Map);
+                //Console.WriteLine("Server Player Count: {0}", basicServer.PlayerCount);
+                //Console.WriteLine("Server Max Players: {0}", basicServer.MaxPlayers);
+                //Console.WriteLine("Server Status: {0}", basicServer.IsOnline);
 
             }
             else

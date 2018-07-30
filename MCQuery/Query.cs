@@ -43,7 +43,7 @@ namespace MCQuery
 			//If handshake could not be done through UDP then try connecting through TCP.
 			if (udpResponse.Length == 0)
 			{
-				byte[] tcpResponse = SendByTcp(address, port);
+				byte[] tcpResponse = SendByTcp(address, port, handshakeMessage);
 
 				if (tcpResponse.Length == 0) throw new NotImplementedException();
 			}
@@ -69,7 +69,7 @@ namespace MCQuery
 
 			if (udpResponse.Length == 0)
 			{
-				byte[] tcpResponse = SendByTcp(address, port);
+				byte[] tcpResponse = SendByTcp(address, port, basicStatMessage);
 
 				if (tcpResponse.Length == 0) return new byte[] { };
 				else return tcpResponse;
@@ -94,7 +94,7 @@ namespace MCQuery
 
 			if (udpResponse.Length == 0)
 			{
-				byte[] tcpResponse = SendByTcp(address, port);
+				byte[] tcpResponse = SendByTcp(address, port, fullStatMessage);
 
 				if (tcpResponse.Length == 0) return new byte[] { };
 				else return tcpResponse;
