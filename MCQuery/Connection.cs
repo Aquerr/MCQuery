@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Timers;
 
 namespace MCQuery
 {
@@ -53,10 +50,7 @@ namespace MCQuery
 				{
 					return new byte[] { };
 				}
-				else
-				{
-					return receiveData;
-				}
+			    return receiveData;
 			}
 			catch (SocketException exception)
 			{
@@ -82,10 +76,7 @@ namespace MCQuery
                 {
                     return true;
                 }
-                else
-                {
-                    return false;
-                }
+                return false;
             }
             catch (SocketException exception)
             {
@@ -102,23 +93,23 @@ namespace MCQuery
                 if (_tcpClient == null)
                 {
                     _tcpClient = new TcpClient(address, port);
-                    NetworkStream networkStream = _tcpClient.GetStream();
-
-                    byte[] buffer = new byte[1024];
-
-                    networkStream.Write(data, 0, data.Length);
-                    int byteCount = networkStream.Read(buffer, 0, buffer.Length);
-
-                    string receivedText = Encoding.ASCII.GetString(buffer, 0, byteCount);
+                    _tcpClient.ReceiveTimeout = 5000;
                 }
+
+                NetworkStream networkStream = _tcpClient.GetStream();
+
+                byte[] buffer = new byte[1024];
+
+                networkStream.Write(data, 0, data.Length);
+                int byteCount = networkStream.Read(buffer, 0, buffer.Length);
+
+                return BitConverter.GetBytes(byteCount);
             }
             catch (SocketException exception)
             {
                 Console.WriteLine(exception);
                 throw;
             }
-
-            return new byte[] { };
         }
 
 		public virtual void Close()
@@ -151,6 +142,8 @@ namespace MCQuery
 
 				// TODO: free unmanaged resources (unmanaged objects) and override a finalizer below.
 				// TODO: set large fields to null.
+			    _tcpClient = null;
+			    _udpClient = null;
 
 				disposedValue = true;
 			}

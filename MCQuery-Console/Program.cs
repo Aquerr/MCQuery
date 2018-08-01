@@ -7,11 +7,13 @@ namespace MCQuery
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Server IP Address: ");
-            string ipAddress = Console.ReadLine();
-
-            Console.WriteLine("Server Port: ");
-            string portString = Console.ReadLine();
+//            Console.WriteLine("Server IP Address: ");
+//            string ipAddress = Console.ReadLine();
+//
+//            Console.WriteLine("Server Port: ");
+//            string portString = Console.ReadLine();
+            string ipAddress = "192.168.0.7";
+            string portString = "25575";
 
             int.TryParse(portString, out int port);
 
@@ -29,6 +31,13 @@ namespace MCQuery
                 //serverQuery.Close();
                 Rcon rconServer = new Rcon(ipAddress, port, "yolo");
                 rconServer.Login();
+//                rconServer.SendCommand("time set 0");
+
+                while (true)
+                {
+                    string input = Console.ReadLine();
+                    rconServer.SendCommand(input);
+                }
 
                 //Console.WriteLine("Printing out server info: ");
                 //Console.WriteLine("Server MOTD: {0}", basicServer.Motd);
