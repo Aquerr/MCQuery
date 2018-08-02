@@ -21,8 +21,7 @@ namespace MCQuery
 
 		//Byte[] - but written as byte array - Challenge Token
 		private byte[] _challengeToken;
-
-		private readonly Timer _challengeTimer = new Timer();
+        private readonly Timer _challengeTimer = new Timer();
 
 		public Query(string address, int port) : base(address, port)
 		{
@@ -72,12 +71,9 @@ namespace MCQuery
 				byte[] tcpResponse = SendByTcp(address, port, basicStatMessage);
 
 				if (tcpResponse.Length == 0) return new byte[] { };
-				else return tcpResponse;
+			    return tcpResponse;
 			}
-			else
-			{
-				return udpResponse;
-			}
+		    return udpResponse;
 		}
 
 		private byte[] GetFullStat(string address, int port)
@@ -97,12 +93,9 @@ namespace MCQuery
 				byte[] tcpResponse = SendByTcp(address, port, fullStatMessage);
 
 				if (tcpResponse.Length == 0) return new byte[] { };
-				else return tcpResponse;
+			    return tcpResponse;
 			}
-			else
-			{
-				return udpResponse;
-			}
+		    return udpResponse;
 		}
 
 		public Server GetBasicServerInfo()
@@ -205,7 +198,7 @@ namespace MCQuery
 			//Index 1 - 4 = SessionId
 			//Index 5 and further is a challenge token which we need to extract.
 
-			byte[] challengeToken = new byte[message.Length - 5];
+			//byte[] challengeToken = new byte[message.Length - 5];
 
 			string response = "";
 
@@ -214,13 +207,12 @@ namespace MCQuery
 				if (i >= 5)
 				{
 					byte item = message[i];
-					response += Encoding.ASCII.GetString(new byte[] { item });
+					response += Encoding.ASCII.GetString(new[] { item });
 				}
 			}
 			Int32 tokenInt32 = Int32.Parse(response);
 
-			byte[] challenge = new byte[]
-			{
+			byte[] challenge = {
 				(byte)(tokenInt32 >> 24 & 0xFF),
 				(byte)(tokenInt32 >> 16 & 0xFF),
 				(byte)(tokenInt32 >> 8 & 0xFF),
@@ -236,9 +228,10 @@ namespace MCQuery
 			Handshake(_address, _port);
 		}
 
-        public override void Close()
-        {
-            base.Close();
-        }
+	    public override bool IsConnected
+	    {
+	        get => _challengeToken != null || _challengeToken.Length > 0;
+	        set => _isAuthenticated = value;
+	    }
     }
 }

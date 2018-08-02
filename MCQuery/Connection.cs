@@ -19,6 +19,8 @@ namespace MCQuery
 			_port = port;
 		}
 
+	    public abstract bool IsConnected { get; }
+
 		protected byte[] SendByUdp(string address, int port, byte[] data)
 		{
 			try
@@ -86,14 +88,14 @@ namespace MCQuery
 
 		protected byte[] SendByTcp(string address, int port, byte[] data)
         {
-            //TODO: Implement sending packet by TCP.
-
             try
             {
                 if (_tcpClient == null)
                 {
-                    _tcpClient = new TcpClient(address, port);
-                    _tcpClient.ReceiveTimeout = 5000;
+                    _tcpClient = new TcpClient(address, port)
+                    {
+                        ReceiveTimeout = 5000
+                    };
                 }
 
                 NetworkStream networkStream = _tcpClient.GetStream();
@@ -114,16 +116,10 @@ namespace MCQuery
 
 		public virtual void Close()
         {
-            if(_udpClient != null)
-            {
-                _udpClient.Close();
-            }
-            if (_tcpClient != null)
-            {
-                _tcpClient.Close();
-            }
+            _udpClient?.Close();
+            _tcpClient?.Close();
 
-			Dispose();
+            Dispose();
         }
 
 		#region IDisposable Support

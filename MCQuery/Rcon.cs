@@ -14,6 +14,7 @@ namespace MCQuery
         private readonly byte[] _twoBytePad = { 0x00, 0x00 };
 
         private string _password;
+        private bool _isAuthenticated;
 
         public Rcon(string address, int port, string password) : base(address, port)
         {
@@ -41,18 +42,17 @@ namespace MCQuery
             message.AddRange(_twoBytePad);
 
             byte[] response = SendByTcp(_address, _port, message.ToArray());
-            bool authenticated = false;
 
             foreach (byte item in response)
             {
                 if (reminder[0] == item)
                 {
-                    authenticated = true;
+                    _isAuthenticated = true;
                     break;
                 }
             }
 
-            return authenticated;
+            return _isAuthenticated;
         }
 
         public bool SendCommand(string command)
@@ -80,6 +80,11 @@ namespace MCQuery
             }
 
             return didSucceeed;
+        }
+
+        public override bool IsConnected
+        {
+            get => _isAuthenticated;
         }
     }
 }
