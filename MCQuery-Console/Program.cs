@@ -31,10 +31,22 @@ namespace MCQuery
                 //serverQuery.Close();
                 Rcon rconServer = new Rcon(ipAddress, port, "yolo");
                 rconServer.Login();
-//                rconServer.SendCommand("time set 0");
+//                string test = rconServer.Address;
+//                Query query = new Query(ipAddress, port);
+//                Console.WriteLine(query.IsConnected);
+//
+//                Server server = query.GetFullServerInfo();
+//                Console.WriteLine(server.Address);
+//                Console.WriteLine(server.GameType);
+//                Console.WriteLine(server.Map);
+//                Console.WriteLine(server.MaxPlayers);
+//                Console.WriteLine(server.Motd);
+//                Console.WriteLine(server.Port);
+//                Console.WriteLine(server.Version);
 
                 while (true)
                 {
+                    Console.WriteLine("Wpisz komende: ");
                     string input = Console.ReadLine();
                     rconServer.SendCommand(input);
                 }

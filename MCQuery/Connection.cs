@@ -10,7 +10,7 @@ namespace MCQuery
 		protected internal string _address = "";
 		protected internal int _port = 0;
 
-		private UdpClient _udpClient;
+	    private UdpClient _udpClient;
 		private TcpClient _tcpClient;
 
 	    protected Connection(string address, int port)
@@ -21,7 +21,10 @@ namespace MCQuery
 
 	    public abstract bool IsConnected { get; }
 
-		protected byte[] SendByUdp(string address, int port, byte[] data)
+	    public string Address => _address;
+	    public int Port => _port;
+
+        protected byte[] SendByUdp(string address, int port, byte[] data)
 		{
 			try
 			{
@@ -43,10 +46,7 @@ namespace MCQuery
 				_udpClient.Send(data, data.Length);
 
 				IPEndPoint remoteIpEndPoint = new IPEndPoint(IPAddress.Parse(address), port);
-
 				byte[] receiveData = _udpClient.Receive(ref remoteIpEndPoint);
-
-				Console.WriteLine(Encoding.ASCII.GetString(receiveData));
 
 				if (receiveData.Length == 0)
 				{

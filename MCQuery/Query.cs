@@ -39,12 +39,10 @@ namespace MCQuery
 			Byte[] handshakeMessage = message.ToArray();
 			byte[] udpResponse = SendByUdp(address, port, handshakeMessage);
 
-			//If handshake could not be done through UDP then try connecting through TCP.
+			//If handshake could not be done.
 			if (udpResponse.Length == 0)
 			{
-				byte[] tcpResponse = SendByTcp(address, port, handshakeMessage);
-
-				if (tcpResponse.Length == 0) throw new NotImplementedException();
+			    _challengeToken = null;
 			}
 			else
 			{
@@ -228,10 +226,8 @@ namespace MCQuery
 			Handshake(_address, _port);
 		}
 
-	    public override bool IsConnected
-	    {
-	        get => _challengeToken != null || _challengeToken.Length > 0;
-	        set => _isAuthenticated = value;
-	    }
-    }
+	    public override bool IsConnected => _challengeToken != null || _challengeToken.Length > 0;
+
+        
+	}
 }

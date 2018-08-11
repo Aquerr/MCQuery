@@ -19,7 +19,6 @@ namespace MCQuery
         public Rcon(string address, int port, string password) : base(address, port)
         {
             _password = password;
-            //Login();
         }
 
         public bool Login()
@@ -82,9 +81,6 @@ namespace MCQuery
             return didSucceeed;
         }
 
-        public override bool IsConnected
-        {
-            get => _isAuthenticated;
-        }
+        public override bool IsConnected => _isAuthenticated;
     }
 }
