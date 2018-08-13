@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Timers;
 
 namespace MCQuery
 {
-	public class Query : Connection
+    public class Query : Connection
 	{
 		//Byte[] - Magic Number
 		private readonly byte[] _magic = { 0xFE, 0xFD };
@@ -98,7 +97,7 @@ namespace MCQuery
 
 		public Server GetBasicServerInfo()
 		{
-			byte[] responseData = GetBasicStat(_address, _port);
+			byte[] responseData = GetBasicStat(base.Address, base.Port);
 
 			if (responseData.Length != 0)
 			{
@@ -139,7 +138,7 @@ namespace MCQuery
 
 		public Server GetFullServerInfo()
 		{
-			byte[] responseData = GetFullStat(_address, _port);
+			byte[] responseData = GetFullStat(base.Address, base.Port);
 
 			if (responseData.Length != 0)
 			{
@@ -223,7 +222,7 @@ namespace MCQuery
 		private void RegenerateChallengeToken(Object sender, ElapsedEventArgs e)
 		{
 			//Run handshake again to obtain new challenge token.
-			Handshake(_address, _port);
+			Handshake(base.Address, base.Port);
 		}
 
 	    public override bool IsConnected => _challengeToken != null || _challengeToken.Length > 0;

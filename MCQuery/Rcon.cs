@@ -40,7 +40,7 @@ namespace MCQuery
             message.AddRange(Encoding.UTF8.GetBytes(_password));
             message.AddRange(_twoBytePad);
 
-            byte[] response = SendByTcp(_address, _port, message.ToArray());
+            byte[] response = SendByTcp(base.Address, base.Port, message.ToArray());
 
             foreach (byte item in response)
             {
@@ -66,7 +66,7 @@ namespace MCQuery
             message.AddRange(Encoding.UTF8.GetBytes(command));
             message.AddRange(_twoBytePad);
 
-            byte[] response = SendByTcp(_address, _port, message.ToArray());
+            byte[] response = SendByTcp(base.Address, base.Port, message.ToArray());
             bool didSucceeed = false;
 
             foreach (byte item in response)

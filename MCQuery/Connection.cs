@@ -7,8 +7,8 @@ namespace MCQuery
 {
 	public abstract class Connection : IDisposable
 	{
-		protected internal string _address = "";
-		protected internal int _port = 0;
+		private string _address = "";
+		private int _port = 0;
 
 	    private UdpClient _udpClient;
 		private TcpClient _tcpClient;
